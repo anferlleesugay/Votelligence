@@ -2,6 +2,11 @@
 
 **Project #19: React Poll & Voting Form**
 
+**🔗 Live demo: https://votelligence.vercel.app**
+(API: https://votelligence-api.onrender.com. It runs on a free tier, so the first request after a quiet period can take about a minute while the server wakes up.)
+
+Demo account: username `demo`, password `demo123`
+
 Votelligence is a full-stack poll and voting app with AI built in. Logged-in users create polls (by hand, or by letting AI draft the question and options from a topic). Anyone can vote once per poll and leave an optional comment, which AI labels as positive, neutral, or negative. The results page shows charts, margins of error, a vote-burst (anomaly) warning, an AI-written summary, and an AI duplicate-option detector. All data is stored in MySQL.
 
 ```
@@ -135,10 +140,21 @@ Open **http://localhost:5173**.
 |------|----------|---------|
 | server/.env | `PORT` | API port (3000) |
 | server/.env | `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | MySQL connection |
+| server/.env | `DB_SSL`, `DB_CA_CERT` | Encrypted connection for online databases (`DB_SSL=true` on Aiven) |
 | server/.env | `CLIENT_ORIGIN` | Frontend URL allowed by CORS |
 | server/.env | `JWT_SECRET` | Signs login tokens |
 | server/.env | `GEMINI_API_KEY`, `GEMINI_MODEL` | AI features |
 | client/.env | `VITE_API_URL` | Axios `baseURL` (`http://localhost:3000/api`) |
+
+## Deployment
+
+| Part | Host | Notes |
+|------|------|-------|
+| React frontend | **Vercel**: https://votelligence.vercel.app | Root directory `client`; env `VITE_API_URL=https://votelligence-api.onrender.com/api`. `vercel.json` sends every route to `index.html` so refreshing `/polls/1` works. |
+| Express API | **Render** (free web service, Singapore) | Root directory `server`; build `npm install`; start `npm start`; health check `/api/health`. All `server/.env` variables are set in Render's Environment settings, with `DB_SSL=true` and `CLIENT_ORIGIN=https://votelligence.vercel.app`. |
+| MySQL | **Aiven** (free plan, Asia Pacific) | Tables and sample data loaded with `node scripts/run-schema.js` (reads the connection from terminal environment variables, so the password is never saved in a file). |
+
+No secrets are stored in the repository. They live only in local `.env` files (ignored by git) and in each host's environment settings.
 
 ## Database
 
@@ -222,6 +238,7 @@ Errors always look like `{ "error": "message" }`. Validation errors (400) also i
 |-------|-------|
 | **JWT login, protected routes, Axios interceptors** (+4) | `server/middleware/auth.js`, `client/src/api/axios.js` (request interceptor adds the token; response interceptor reads the server's error message) |
 | **Update records** (+3): `PATCH /api/polls/:id/close` runs an `UPDATE` query | `pollController.closePoll`, `pollModel.close` |
+| **Deployed online** (+3): frontend on Vercel, API on Render, MySQL on Aiven | https://votelligence.vercel.app |
 | **Extra**: AI features (Gemini), statistics engine, analytics dashboard | `server/services/`, `AnalyticsDashboard.jsx` |
 
 ## Known Issues and Limitations
@@ -231,6 +248,8 @@ Errors always look like `{ "error": "message" }`. Validation errors (400) also i
 - The anomaly warning only appears when a poll has at least 20 votes.
 - AI features need a `GEMINI_API_KEY`. Free-tier keys have rate limits, so too many AI requests return a "usage limit" message (429).
 - The duplicate detector makes one embedding request per option, so it is slower for polls with many options.
+- The free Render server sleeps after 15 minutes without traffic, so the first request after that takes about a minute.
+- The free Aiven database powers off when it isn't used for a while. It has to be switched back on in the Aiven console (**Power on**).
 - In the browser console, a failed request (e.g. the 401 from a wrong password, or the 409 from voting twice) shows as a red network line. This is the browser logging the HTTP status, not a CORS error or a React warning.
 
 ## AI Assistance Disclosure
